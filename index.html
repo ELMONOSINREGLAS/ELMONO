@@ -730,4 +730,325 @@ function applyBrandSettings(){
   document.getElementById('navBrandTag').innerText = brand.tagline;
   document.getElementById('authBrandName').innerText = brand.name;
   document.getElementById('authBrandTag').innerText = brand.tagline;
-  document.getElementById
+  document.getElementById('footerBrandName').innerText = brand.name;
+  document.getElementById('footerBrandTag').innerText = brand.tagline;
+  
+  document.getElementById('footerDomain').innerText = brand.name.toUpperCase().replace(/\s+/g, '') + ".STORE";
+
+  const navImg = document.getElementById('navLogoImg');
+  const footerImg = document.getElementById('footerLogoImg');
+  const authImg = document.getElementById('authLogoImg');
+
+  if(brand.logoUrl && brand.logoActive !== false) {
+    navImg.src = brand.logoUrl; navImg.style.display = "inline-block"; navImg.style.width = (brand.navLogoSize || 52) + "px"; navImg.style.height = (brand.navLogoSize || 52) + "px";
+    footerImg.src = brand.logoUrl; footerImg.style.display = "inline-block"; footerImg.style.width = (brand.footerLogoSize || 36) + "px"; footerImg.style.height = (brand.footerLogoSize || 36) + "px";
+    if(authImg) { authImg.src = brand.logoUrl; authImg.style.display = "inline-block"; }
+  } else {
+    navImg.style.display = "none"; footerImg.style.display = "none"; if(authImg) authImg.style.display = "none";
+  }
+}
+
+function updateColorText(pickerId, textId){
+  document.getElementById(textId).value = document.getElementById(pickerId).value;
+}
+
+// ── AUTH LOGIC ──
+function switchAuthTab(tab){
+  document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
+  if(tab === 'login'){
+    document.querySelectorAll('.auth-tab')[0].classList.add('active');
+    document.getElementById('loginForm').classList.add('active');
+  } else {
+    document.querySelectorAll('.auth-tab')[1].classList.add('active');
+    document.getElementById('registerForm').classList.add('active');
+  }
+}
+
+function handleLogin(){
+  const user = document.getElementById('loginUser').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  if(user.toUpperCase() === 'ADMIN'){
+    currentUser = { username: 'Admin', role: 'admin' };
+    enterApp();
+  } else if(user !== "" && pass !== "") {
+    currentUser = { username: user, role: 'customer' };
+    enterApp();
+  } else {
+    document.getElementById('loginError').style.display = 'block';
+  }
+}
+
+function handleRegister(){
+  const user = document.getElementById('regUser').value.trim();
+  const pass = document.getElementById('regPass').value;
+  if(user !== "" && pass !== ""){
+    currentUser = { username: user, role: 'customer' };
+    enterApp();
+  } else {
+    document.getElementById('registerError').style.display = 'block';
+  }
+}
+
+function enterAsGuest(){
+  currentUser = { username: 'Invitado', role: 'guest' };
+  enterApp();
+}
+
+function enterApp(){
+  document.getElementById('authScreen').style.display = 'none';
+  
+  const badge = document.getElementById('roleBadge');
+  badge.innerText = currentUser.username;
+
+  if(currentUser.role === 'admin'){
+    document.getElementById('adminPanel').style.display = 'block';
+    document.getElementById('storePanel').style.display = 'none';
+    document.getElementById('customerTabs').style.display = 'none';
+    badge.style.background = 'var(--red)';
+    badge.style.color = '#fff';
+  } else {
+    document.getElementById('adminPanel').style.display = 'none';
+    document.getElementById('storePanel').style.display = 'block';
+    document.getElementById('customerTabs').style.display = 'flex';
+    badge.style.background = '#fff';
+    badge.style.color = '#000';
+  }
+}
+
+function handleLogout(){
+  currentUser = null;
+  document.getElementById('authScreen').style.display = 'flex';
+  document.getElementById('adminPanel').style.display = 'none';
+  document.getElementById('storePanel').style.display = 'none';
+  document.getElementById('loginUser').value = "";
+  document.getElementById('loginPass').value = "";
+  document.getElementById('loginError').style.display = 'none';
+  document.getElementById('registerError').style.display = 'none';
+}
+
+function switchAdminTab(target){
+  document.querySelectorAll('.admin-tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('adminSecProducts').classList.remove('active');
+  document.getElementById('adminSecBrand').classList.remove('active');
+
+  if(target === 'products'){
+    document.querySelectorAll('.admin-tab-btn')[0].classList.add('active');
+    document.getElementById('adminSecProducts').classList.add('active');
+  } else {
+    document.querySelectorAll('.admin-tab-btn')[1].classList.add('active');
+    document.getElementById('adminSecBrand').classList.add('active');
+  }
+}
+
+function switchStoreTab(){
+  if(currentUser && currentUser.role === 'admin'){
+    document.getElementById('adminPanel').style.display = 'none';
+    document.getElementById('storePanel').style.display = 'block';
+  }
+}
+
+// ── RENDER STORE ──
+function renderStoreProducts(){
+  const grid = document.getElementById('productsGrid');
+  grid.innerHTML = "";
+  let filtered = (currentCategoryFilter === 'todos') ? products : products.filter(p => p.category === currentCategoryFilter);
+  document.getElementById('storeProdCount').innerText = `${filtered.length} Artículo(s) / Prenda(s)`;
+
+  if(filtered.length === 0){
+    grid.innerHTML = `<div class="empty-state"><p>Próximamente Drop de ${currentCategoryFilter}</p></div>`;
+    return;
+  }
+
+  filtered.forEach(p => {
+    const card = document.createElement('div');
+    card.className = "product-card";
+    card.setAttribute('onclick', `openProductModal('${p.id}')`);
+
+    let priceHTML = p.priceSale ? `<span class="price-cur sale">$${Number(p.priceSale).toLocaleString()}</span> <span class="price-old">$${Number(p.priceOrig).toLocaleString()}</span>` : `<span class="price-cur">$${Number(p.priceOrig).toLocaleString()}</span>`;
+    let badgeHTML = p.badge === 'NEW' ? `<span class="badge badge-new">NEW</span>` : (p.badge === 'SALE' ? `<span class="badge badge-sale">SALE</span>` : '');
+
+    card.innerHTML = `
+      <div class="product-img-wrap">
+        ${p.imgUrl ? `<img src="${p.imgUrl}" alt="${p.name}" loading="lazy">` : `<div class="product-img-ph"><span>${p.category}</span></div>`}
+        <div class="product-overlay"><span style="font-family:var(--mono-font); font-size:11px; letter-spacing:.2em; border-bottom:1px solid #fff; padding-bottom:4px; text-transform:uppercase;">Vista Rápida</span></div>
+        <div class="product-badges">${badgeHTML}</div>
+      </div>
+      <div class="product-info">
+        <div class="product-category">${p.category}</div>
+        <h4 class="product-name">${p.name}</h4>
+        <div class="product-price-row">${priceHTML}</div>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+function filterCategory(cat){
+  currentCategoryFilter = cat;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(`flt-${cat.toLowerCase()}`).classList.add('active');
+  document.getElementById('currentCatTitle').innerText = cat === 'todos' ? 'Catálogo Completo' : cat;
+  renderStoreProducts();
+}
+
+function openProductModal(id){
+  const p = products.find(prod => prod.id === id);
+  if(!p) return;
+
+  document.getElementById('mCat').innerText = p.category;
+  document.getElementById('mName').innerText = p.name;
+  document.getElementById('mDesc').innerText = p.desc || "Prenda de streetwear exclusiva firma EL MONO.";
+  
+  const pBox = document.getElementById('mPrice');
+  const pOldBox = document.getElementById('mPriceOld');
+
+  if(p.priceSale){
+    pBox.innerText = `$${Number(p.priceSale).toLocaleString()}`; pBox.classList.add('sale');
+    pOldBox.innerText = `$${Number(p.priceOrig).toLocaleString()}`;
+  } else {
+    pBox.innerText = `$${Number(p.priceOrig).toLocaleString()}`; pBox.classList.remove('sale');
+    pOldBox.innerText = "";
+  }
+
+  document.getElementById('mImgContainer').innerHTML = p.imgUrl ? `<img src="${p.imgUrl}">` : `<div class="modal-img-ph">💀</div>`;
+
+  const targetNumber = brand.waGlobal || "573000000000";
+  const customMsg = `Hola EL MONO, me interesa el artículo: ${p.name} (${p.category}) con valor de ${p.priceSale ? p.priceSale : p.priceOrig}. ¿Está disponible?`;
+  document.getElementById('mWaBtn').href = p.waLink || `https://api.whatsapp.com/send?phone=${targetNumber}&text=${encodeURIComponent(customMsg)}`;
+
+  document.getElementById('productModal').classList.add('open');
+}
+
+function closeProductModal(e){
+  document.getElementById('productModal').classList.remove('open');
+}
+
+// ── ADMIN CRUD ──
+function renderAdminProducts(){
+  const list = document.getElementById('adminProductList');
+  list.innerHTML = "";
+  document.getElementById('adminProdCount').innerText = products.length;
+
+  products.forEach(p => {
+    const item = document.createElement('div');
+    item.className = "admin-product-item";
+    let pRow = p.priceSale ? `<span class="p-sale">$${Number(p.priceSale).toLocaleString()}</span> <span class="p-orig">$${Number(p.priceOrig).toLocaleString()}</span>` : `<span class="p-normal">$${Number(p.priceOrig).toLocaleString()}</span>`;
+
+    item.innerHTML = `
+      <div class="admin-product-thumb">${p.imgUrl ? `<img src="${p.imgUrl}">` : ""}</div>
+      <div class="admin-product-info">
+        <h4>${p.name}</h4>
+        <p>${p.category} ${p.badge ? `| <span class="p-badge ${p.badge.toLowerCase()}">${p.badge}</span>` : ""}</p>
+        <div class="price-row">${pRow}</div>
+      </div>
+      <div class="admin-actions">
+        <button onclick="editProduct('${p.id}')">Editar</button>
+        <button class="del" onclick="deleteProduct('${p.id}')">Eliminar</button>
+      </div>
+    `;
+    list.appendChild(item);
+  });
+}
+
+function saveProduct(){
+  const id = document.getElementById('editProductId').value;
+  const name = document.getElementById('pName').value.trim();
+  const desc = document.getElementById('pDesc').value.trim();
+  const category = document.getElementById('pCategory').value;
+  const badge = document.getElementById('pBadge').value;
+  const priceOrig = parseFloat(document.getElementById('pPriceOrig').value);
+  const priceSale = parseFloat(document.getElementById('pPriceSale').value) || null;
+  const imgUrl = document.getElementById('pImgUrl').value.trim();
+  const waLink = document.getElementById('pWaLink').value.trim();
+
+  if(!name || isNaN(priceOrig)){ alert("Nombre y precio son obligatorios."); return; }
+
+  if(id){
+    const idx = products.findIndex(p => p.id === id);
+    if(idx !== -1) products[idx] = { id, name, desc, category, badge, priceOrig, priceSale, imgUrl, waLink };
+  } else {
+    products.push({ id: "p_" + Date.now(), name, desc, category, badge, priceOrig, priceSale, imgUrl, waLink });
+  }
+
+  localStorage.setItem('ELMONO_PRODUCTS', JSON.stringify(products));
+  clearProductForm(); renderAdminProducts(); renderStoreProducts();
+  showToast("Inventario Guardado");
+}
+
+function editProduct(id){
+  const p = products.find(prod => prod.id === id);
+  if(!p) return;
+  document.getElementById('editProductId').value = p.id;
+  document.getElementById('pName').value = p.name;
+  document.getElementById('pDesc').value = p.desc || "";
+  document.getElementById('pCategory').value = p.category;
+  document.getElementById('pBadge').value = p.badge || "";
+  document.getElementById('pPriceOrig').value = p.priceOrig;
+  document.getElementById('pPriceSale').value = p.priceSale || "";
+  document.getElementById('pImgUrl').value = p.imgUrl || "";
+  document.getElementById('pWaLink').value = p.waLink || "";
+  document.getElementById('prodFormTitle').innerText = "Modificar Artículo";
+  document.getElementById('cancelEditBtn').style.display = "inline-block";
+}
+
+function deleteProduct(id){
+  if(confirm("¿Eliminar del catálogo?")){
+    products = products.filter(p => p.id !== id);
+    localStorage.setItem('ELMONO_PRODUCTS', JSON.stringify(products));
+    renderAdminProducts(); renderStoreProducts(); showToast("Removido");
+  }
+}
+
+function clearProductForm(){
+  document.getElementById('editProductId').value = "";
+  document.getElementById('pName').value = "";
+  document.getElementById('pDesc').value = "";
+  document.getElementById('pPriceOrig').value = "";
+  document.getElementById('pPriceSale').value = "";
+  document.getElementById('pImgUrl').value = "";
+  document.getElementById('pWaLink').value = "";
+  document.getElementById('prodFormTitle').innerText = "Añadir Nuevo Producto";
+  document.getElementById('cancelEditBtn').style.display = "none";
+}
+
+function showToast(msg){
+  const t = document.getElementById('systemToast'); t.innerText = msg.toUpperCase();
+  t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ── SLIDER INTERACTIVE (TOTALMENTE CORREGIDO) ──
+function startSlider(){
+  if(slideInterval) clearInterval(slideInterval);
+  slideInterval = setInterval(() => {
+    const slides = document.querySelectorAll('.hero-slide');
+    const dots = document.querySelectorAll('.hero-dot');
+    if(slides.length === 0) return;
+    
+    slides[currentSlideIdx].classList.remove('active');
+    dots[currentSlideIdx].classList.remove('active');
+    
+    currentSlideIdx = (currentSlideIdx + 1) % slides.length;
+    
+    slides[currentSlideIdx].classList.add('active');
+    dots[currentSlideIdx].classList.add('active');
+  }, 5000);
+}
+
+function setSlide(idx){
+  const slides = document.querySelectorAll('.hero-slide');
+  const dots = document.querySelectorAll('.hero-dot');
+  if(slides.length === 0) return;
+
+  slides[currentSlideIdx].classList.remove('active');
+  dots[currentSlideIdx].classList.remove('active');
+  
+  currentSlideIdx = idx;
+  
+  slides[currentSlideIdx].classList.add('active');
+  dots[currentSlideIdx].classList.add('active');
+  startSlider();
+}
+</script>
+</body>
+</html>
